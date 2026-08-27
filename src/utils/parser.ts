@@ -277,7 +277,7 @@ export function parseRawGrid(
         }
 
         if (extractedId) {
-          const empId = `EMP-${extractedId}`;
+          const empId = extractedId;
           const cleanName = extractedName || `Karyawan ${extractedId}`;
           const cleanDept = extractedDept || 'Umum';
 
@@ -332,8 +332,10 @@ export function parseRawGrid(
                   timestamp: `${dateStr} ${t}`,
                   machine_id: machineIdFallback,
                   machine_user_id: currentEmp!.id,
-                  employee_id: `EMP-${currentEmp!.id}`,
+                  employee_id: currentEmp!.id,
                   raw_text: String(cellVal),
+                  extracted_name: currentEmp!.name,
+                  extracted_dept: currentEmp!.dept,
                 });
               });
             }
@@ -354,8 +356,10 @@ export function parseRawGrid(
                   timestamp: `${dateStr} ${t}`,
                   machine_id: machineIdFallback,
                   machine_user_id: currentEmp!.id,
-                  employee_id: `EMP-${currentEmp!.id}`,
+                  employee_id: currentEmp!.id,
                   raw_text: String(cellVal),
+                  extracted_name: currentEmp!.name,
+                  extracted_dept: currentEmp!.dept,
                 });
               });
             }
@@ -397,7 +401,7 @@ export function parseRawGrid(
 
       if (!hasAnyTaps && !rawName) continue;
 
-      const empId = `EMP-${rawUserId}`;
+      const empId = rawUserId;
       const cleanName = rawName || `Karyawan ${rawUserId}`;
       const cleanDept = rawDept || 'Umum';
 
@@ -444,6 +448,8 @@ export function parseRawGrid(
               machine_user_id: rawUserId,
               employee_id: empId,
               raw_text: cellStr,
+              extracted_name: cleanName,
+              extracted_dept: cleanDept,
             });
           });
         }
@@ -507,7 +513,7 @@ export function parseRawGrid(
 
       if (dateStr && timeTokens.length > 0) {
         datesFound.add(dateStr);
-        const empId = `EMP-${rawUser}`;
+        const empId = rawUser;
 
         if (!employeesMap.has(empId)) {
           employeesMap.set(empId, {
@@ -539,6 +545,8 @@ export function parseRawGrid(
             machine_user_id: rawUser,
             employee_id: empId,
             raw_text: String(rawTs),
+            extracted_name: rawName || `Karyawan ${rawUser}`,
+            extracted_dept: 'PRODUKSI',
           });
         });
       }

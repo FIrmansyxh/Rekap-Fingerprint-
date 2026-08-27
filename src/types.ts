@@ -12,6 +12,8 @@ export interface Employee {
   status: 'aktif' | 'nonaktif';
   berlaku_dari?: string;
   previous_period_honor?: number; // for Y01 variance check
+  is_unmapped_new_name?: boolean;
+  unmapped_raw_id?: string;
 }
 
 export interface MachineMapping {
@@ -29,6 +31,8 @@ export interface RawTap {
   machine_user_id: string;
   employee_id?: string;
   raw_text?: string;
+  extracted_name?: string;
+  extracted_dept?: string;
   is_deduped?: boolean;
   dedup_reason?: string;
   is_boundary_shift?: boolean;
@@ -56,7 +60,7 @@ export interface WorkSession {
 }
 
 export interface FlagBadge {
-  code: 'R01' | 'R02' | 'R03' | 'R04' | 'R05' | 'R06' | 'Y01' | 'Y02' | 'Y03' | 'Y04' | 'B01' | 'B02';
+  code: 'R01' | 'R02' | 'R03' | 'R04' | 'R05' | 'R06' | 'Y01' | 'Y02' | 'Y03' | 'Y04' | 'Y05' | 'B01' | 'B02';
   level: 'red' | 'yellow';
   title: string;
   description: string;
@@ -83,6 +87,7 @@ export interface EmployeeRecap {
   flags: FlagBadge[];
   status_color: 'red' | 'yellow' | 'green';
   machines_used: string[];
+  attendance_note?: string; // Catatan cuti / sakit / izin opsional (misal: Cuti Melahirkan, Cuti Tahunan, Sakit)
 }
 
 export interface PeriodConfig {

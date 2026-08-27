@@ -28,6 +28,9 @@ import {
   Moon,
   ArrowRightLeft,
   ArrowUpRight,
+  UserPlus,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { EmployeeRecap, FlagBadge, PeriodConfig, SystemSettings, WorkSession, RawTap } from '../types';
 import {
@@ -64,6 +67,15 @@ interface DashboardHITLProps {
     action: 'DEFER_TO_NEXT' | 'SETTLE_WITH_PREVIOUS',
     reason?: string
   ) => void;
+  onSetAttendanceNote?: (employeeId: string, note: string) => void;
+  onDeleteUnmappedEmployee?: (rawIdOrEmpId: string, reason?: string) => void;
+  onQuickRegisterUnmappedEmployee?: (
+    rawId: string,
+    nama: string,
+    bagian: string,
+    upahHarian: number,
+    upahLembur: number
+  ) => void;
   onNavigateToUpload?: () => void;
 }
 
@@ -82,6 +94,9 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
   onDeleteRawTap,
   onRestoreRawTap,
   onResolveBoundaryTap,
+  onSetAttendanceNote,
+  onDeleteUnmappedEmployee,
+  onQuickRegisterUnmappedEmployee,
   onNavigateToUpload,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,6 +128,30 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
   const [tapToDelete, setTapToDelete] = useState<RawTap | null>(null);
   const [deleteTapReason, setDeleteTapReason] = useState('Tap salah / ganda tak sengaja');
   const [customDeleteTapReason, setCustomDeleteTapReason] = useState('');
+
+  // Quick Register Unmapped Employee Modal State
+  const [quickRegisterContext, setQuickRegisterContext] = useState<{
+    rawId: string;
+    nama: string;
+    bagian: string;
+    upahHarian: number | '';
+    upahLembur: number | '';
+  } | null>(null);
+  const [quickRegisterError, setQuickRegisterError] = useState('');
+
+  // Delete Unmapped Employee Modal State
+  const [deleteUnmappedContext, setDeleteUnmappedContext] = useState<{
+    rawIdOrEmpId: string;
+    nama: string;
+  } | null>(null);
+
+  // Quick Attendance / Leave Note Modal State
+  const [noteModalContext, setNoteModalContext] = useState<{
+    employeeId: string;
+    employeeName: string;
+    currentNote: string;
+  } | null>(null);
+  const [noteModalInput, setNoteModalInput] = useState('');
 
   const periodDates = useMemo(() => {
     return getPeriodDates(period?.startDate || '2026-08-15');
@@ -156,6 +195,15 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
   const grandTotalH = recaps.reduce((acc, r) => acc + (Math.round(r.total_H * 100) / 100), 0);
   const grandTotalL = recaps.reduce((acc, r) => acc + (Math.round(r.total_L * 100) / 100), 0);
   const totalDedupedTaps = recaps.reduce((acc, r) => acc + r.raw_taps.filter((t) => t.is_deduped).length, 0);
+
+  // Problem breakdown
+  const unmappedEmployees = recaps.filter(
+    (r) => r.employee.is_unmapped_new_name || r.flags.some((f) => f.code === 'R04')
+  );
+  const orphanTapRecaps = recaps.filter((r) => r.flags.some((f) => f.code === 'R01'));
+  const zeroTapRecaps = recaps.filter((r) => r.total_taps === 0 || r.flags.some((f) => f.code === 'Y05'));
+  const boundaryRecaps = recaps.filter((r) => r.flags.some((f) => f.code === 'Y03' || f.code === 'Y04'));
+  const totalProblems = redCount + yellowCount;
 
   const canFinalize = redCount === 0 && isDateComplete && recaps.length > 0;
 
@@ -412,7 +460,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
           </p>
         </div>
 
-        {/* Yellow Flags Card */}
+        {/* Yellow / Orange Flags Card */}
         <div
           onClick={() => setStatusFilter(statusFilter === 'yellow' ? 'all' : 'yellow')}
           className={`p-3.5 rounded-xl border cursor-pointer transition shadow-xs flex flex-col justify-between ${
@@ -423,7 +471,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
-              Baris Kuning (Perhatian)
+              Baris Oranye (Perhatian)
             </span>
             <span className={`w-6 h-6 rounded-full flex items-center justify-center ${yellowCount > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400'}`}>
               <AlertTriangle className="w-3.5 h-3.5" />
@@ -433,7 +481,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
             {yellowCount} <span className="text-xs font-medium text-slate-500">orang</span>
           </div>
           <p className="text-[10px] text-slate-500 leading-tight">
-            Boleh diproses, perlu ditinjau
+            Boleh diproses, perlu ditinjau / ada catatan
           </p>
         </div>
 
@@ -463,6 +511,95 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
         </div>
       </div>
 
+      {/* STATUS & DETAIL MASALAH YANG ADA DI DASHBOARD TINJAUAN */}
+      {totalProblems > 0 && (
+        <div className="p-4 bg-slate-50/90 border border-slate-200 rounded-xl space-y-2.5 shadow-xs">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+              <Info className="w-4 h-4 text-blue-600" />
+              <span>Status Masalah & Anomali di Dashboard Tinjauan:</span>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              Cek detail permasalahan pada masing-masing baris yang ditandai warna di bawah.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+            {/* Unmapped Names */}
+            <div
+              className={`p-2.5 rounded-lg border flex items-start gap-2 ${
+                unmappedEmployees.length > 0
+                  ? 'bg-rose-50 border-rose-200 text-rose-950 font-medium'
+                  : 'bg-white border-slate-200 text-slate-500'
+              }`}
+            >
+              <AlertOctagon className={`w-4 h-4 shrink-0 mt-0.5 ${unmappedEmployees.length > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
+              <div>
+                <span className="block font-bold">Nama Baru di File: {unmappedEmployees.length}</span>
+                <span className="text-[10px] text-slate-600 leading-tight block">
+                  {unmappedEmployees.length > 0
+                    ? 'Belum ada di Master. Perlu penyesuaian (Daftarkan / Hapus).'
+                    : 'Semua nama terdaftar di Master.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Single / Orphan Taps */}
+            <div
+              className={`p-2.5 rounded-lg border flex items-start gap-2 ${
+                orphanTapRecaps.length > 0
+                  ? 'bg-rose-50 border-rose-200 text-rose-950 font-medium'
+                  : 'bg-white border-slate-200 text-slate-500'
+              }`}
+            >
+              <AlertOctagon className={`w-4 h-4 shrink-0 mt-0.5 ${orphanTapRecaps.length > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
+              <div>
+                <span className="block font-bold">Tap Tunggal / Ganjil: {orphanTapRecaps.length}</span>
+                <span className="text-[10px] text-slate-600 leading-tight block">
+                  {orphanTapRecaps.length > 0
+                    ? 'Ada tap masuk tanpa keluar (atau sebaliknya).'
+                    : 'Tidak ada tap ganjil.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Zero Taps / Leave */}
+            <div
+              className={`p-2.5 rounded-lg border flex items-start gap-2 ${
+                zeroTapRecaps.length > 0
+                  ? 'bg-amber-50 border-amber-200 text-amber-950 font-medium'
+                  : 'bg-white border-slate-200 text-slate-500'
+              }`}
+            >
+              <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${zeroTapRecaps.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+              <div>
+                <span className="block font-bold">Tanpa Tap (Cuti / Izin): {zeroTapRecaps.length}</span>
+                <span className="text-[10px] text-slate-600 leading-tight block">
+                  Ditandai Oranye. Opsional tambah catatan (Cuti/Sakit).
+                </span>
+              </div>
+            </div>
+
+            {/* Boundary Shifts */}
+            <div
+              className={`p-2.5 rounded-lg border flex items-start gap-2 ${
+                boundaryRecaps.length > 0
+                  ? 'bg-amber-50 border-amber-200 text-amber-950 font-medium'
+                  : 'bg-white border-slate-200 text-slate-500'
+              }`}
+            >
+              <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${boundaryRecaps.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+              <div>
+                <span className="block font-bold">Shift Batas Periode: {boundaryRecaps.length}</span>
+                <span className="text-[10px] text-slate-600 leading-tight block">
+                  Tap di Jumat sore/Sabtu pagi lintas batas minggu.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Date Incompleteness Warning Banner */}
       {!isDateComplete && recaps.length > 0 && (
         <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start gap-2.5 shadow-xs">
@@ -476,7 +613,43 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
         </div>
       )}
 
+      {/* EMPTY DASHBOARD WHEN NO FILE UPLOADED */}
+      {recaps.length === 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 text-center shadow-xs space-y-4 max-w-2xl mx-auto">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto border border-blue-100">
+            <FileSpreadsheet className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold text-slate-900">
+              Belum Ada File Absensi yang Diunggah
+            </h3>
+            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+              Dashboard Tinjauan hanya memunculkan nama karyawan yang terdapat di dalam file excel / csv absensi yang diunggah. Nama pada Master Data yang tidak muncul di file otomatis tidak masuk ke Dashboard.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            {onNavigateToUpload && (
+              <button
+                onClick={onNavigateToUpload}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Unggah File Absensi Sekarang</span>
+              </button>
+            )}
+            <button
+              onClick={onLoadSampleData}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl border border-slate-200 transition inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span>Muat Data Contoh Lengkap</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Table Container */}
+      {recaps.length > 0 && (
       <div className="bg-white border border-slate-200/90 rounded-xl shadow-xs overflow-hidden">
         
         {/* Table Filter & Search Toolbar */}
@@ -544,7 +717,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                Kuning ({yellowCount})
+                Oranye ({yellowCount})
               </button>
               <button
                 onClick={() => setStatusFilter('green')}
@@ -600,7 +773,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                 <strong>Petunjuk:</strong> Klik langsung pada sel hari yang bertanda 
                 <span className="inline-block mx-1 px-1.5 py-0.2 bg-rose-100 text-rose-800 font-bold rounded border border-rose-300">Merah</span> 
                 atau 
-                <span className="inline-block mx-1 px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded border border-amber-300">Oranye/Kuning</span> 
+                <span className="inline-block mx-1 px-1.5 py-0.2 bg-amber-100 text-amber-800 font-bold rounded border border-amber-300">Oranye</span> 
                 untuk membuka opsi <strong>Edit</strong>, <strong>Hapus</strong>, atau <strong>Pasangkan Tap</strong> seketika!
               </span>
             </div>
@@ -617,7 +790,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
               <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-300 text-[11px]">
                 <tr>
                   <th className="py-2.5 px-3 border-r border-slate-200 text-center w-10">Status</th>
-                  <th className="py-2.5 px-3.5 border-r border-slate-200 min-w-[140px]">Karyawan</th>
+                  <th className="py-2.5 px-3.5 border-r border-slate-200 min-w-[150px]">Nama & ID Mesin</th>
                   <th className="py-2.5 px-3 border-r border-slate-200 min-w-[100px]">Bagian</th>
 
                   {/* 7 Days Headers (Sabtu to Jumat) */}
@@ -665,16 +838,22 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  sortedAndFilteredRecaps.map((r, rIdx) => {
+                  sortedAndFilteredRecaps.map((r) => {
                     const isRed = r.status_color === 'red';
                     const isYellow = r.status_color === 'yellow';
+                    const isUnmapped = r.employee.is_unmapped_new_name || r.flags.some((f) => f.code === 'R04');
+                    const isZeroTap = r.total_taps === 0 || r.flags.some((f) => f.code === 'Y05');
 
                     return (
                       <tr
                         key={r.employee.employee_id}
                         className={`hover:bg-slate-50 transition border-l-4 ${
-                          isRed
+                          isUnmapped
+                            ? 'border-l-rose-600 bg-rose-50/40'
+                            : isRed
                             ? 'border-l-rose-500 bg-rose-50/20'
+                            : isZeroTap
+                            ? 'border-l-orange-500 bg-orange-50/20'
                             : isYellow
                             ? 'border-l-amber-400 bg-amber-50/15'
                             : 'border-l-emerald-500'
@@ -683,11 +862,11 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                         {/* Status Icon & Flags */}
                         <td className="py-2.5 px-3 text-center border-r border-slate-200">
                           {isRed ? (
-                            <span title="Memblokir persetujuan (Perlu koreksi)">
+                            <span title="Memblokir persetujuan (Perlu koreksi / penyesuaian)">
                               <AlertOctagon className="w-4 h-4 text-rose-600 mx-auto" />
                             </span>
                           ) : isYellow ? (
-                            <span title="Peringatan (Perlu ditinjau)">
+                            <span title="Peringatan (Perlu ditinjau / catatan)">
                               <AlertTriangle className="w-4 h-4 text-amber-500 mx-auto" />
                             </span>
                           ) : (
@@ -697,19 +876,93 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                           )}
                         </td>
 
-                        {/* Name & ID */}
+                        {/* Name & ID + Quick Actions for Unmapped / Notes */}
                         <td className="py-2.5 px-3.5 border-r border-slate-200">
-                          <button
-                            onClick={() => onSelectEmployee(r.employee.employee_id)}
-                            className="text-left group"
-                          >
-                            <span className="font-bold text-slate-900 group-hover:text-blue-600 transition block text-xs">
-                              {r.employee.nama}
-                            </span>
-                            <span className="text-[10px] font-mono text-slate-500">
-                              {r.employee.employee_id}
-                            </span>
-                          </button>
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => onSelectEmployee(r.employee.employee_id)}
+                              className="text-left group"
+                            >
+                              <span className="font-bold text-slate-900 group-hover:text-blue-600 transition block text-xs">
+                                {r.employee.nama}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-500">
+                                {isUnmapped ? `ID File: ${r.employee.unmapped_raw_id || r.employee.nama}` : `ID Mesin: ${r.employee.employee_id}`}
+                              </span>
+                            </button>
+
+                            {/* UNMAPPED NEW NAME ACTIONS */}
+                            {isUnmapped && (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <span className="text-[9px] bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded shadow-2xs">
+                                  NAMA BARU DI FILE
+                                </span>
+                                {!isLocked && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setQuickRegisterContext({
+                                          rawId: r.employee.unmapped_raw_id || r.employee.employee_id.replace('UNMAPPED_', '') || r.employee.nama,
+                                          nama: r.employee.nama,
+                                          bagian: r.employee.bagian && r.employee.bagian !== 'Nama Baru (Belum Terdaftar)' && r.employee.bagian !== 'Umum' ? r.employee.bagian : 'PRODUKSI',
+                                          upahHarian: '',
+                                          upahLembur: '',
+                                        });
+                                        setQuickRegisterError('');
+                                      }}
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded shadow-2xs transition"
+                                      title="Daftarkan nama baru ini ke Master Data Karyawan"
+                                    >
+                                      <UserPlus className="w-2.5 h-2.5" />
+                                      <span>Daftarkan</span>
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        setDeleteUnmappedContext({
+                                          rawIdOrEmpId: r.employee.employee_id,
+                                          nama: r.employee.nama,
+                                        })
+                                      }
+                                      className="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 px-1.5 py-0.5 rounded transition"
+                                      title="Hapus baris nama ini dari absensi"
+                                    >
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                      <span>Hapus Baris</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {/* ZERO TAPS / LEAVE NOTE BADGE */}
+                            {isZeroTap && !isUnmapped && (
+                              <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                                <span className="text-[9px] bg-orange-100 text-orange-800 font-bold border border-orange-300 px-1.5 py-0.5 rounded">
+                                  Tanpa Tap
+                                </span>
+                                {r.attendance_note ? (
+                                  <span className="text-[9px] bg-amber-50 text-amber-900 font-semibold border border-amber-200 px-1.5 py-0.5 rounded">
+                                    📝 {r.attendance_note}
+                                  </span>
+                                ) : null}
+                                {!isLocked && (
+                                  <button
+                                    onClick={() => {
+                                      setNoteModalContext({
+                                        employeeId: r.employee.employee_id,
+                                        employeeName: r.employee.nama,
+                                        currentNote: r.attendance_note || '',
+                                      });
+                                      setNoteModalInput(r.attendance_note || '');
+                                    }}
+                                    className="text-[9px] text-blue-600 hover:text-blue-800 underline font-semibold"
+                                  >
+                                    {r.attendance_note ? 'Ubah' : '+ Catatan Cuti'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         {/* Bagian */}
@@ -859,7 +1112,7 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
               <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-2.5 px-3.5 w-10 text-center">Status</th>
-                  <th className="py-2.5 px-3.5">Nama & Karyawan</th>
+                  <th className="py-2.5 px-3.5">Nama & ID Mesin</th>
                   <th className="py-2.5 px-3.5">Bagian</th>
                   <th className="py-2.5 px-3.5">Penanda Anomali</th>
                   <th className="py-2.5 px-3.5 text-center">Hari Masuk (H)</th>
@@ -874,13 +1127,16 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                 {sortedAndFilteredRecaps.map((r) => {
                   const isRed = r.status_color === 'red';
                   const isYellow = r.status_color === 'yellow';
+                  const isUnmapped = r.employee.is_unmapped_new_name || r.flags.some((f) => f.code === 'R04');
 
                   return (
                     <tr
                       key={r.employee.employee_id}
                       onClick={() => onSelectEmployee(r.employee.employee_id)}
                       className={`cursor-pointer transition border-l-4 ${
-                        isRed
+                        isUnmapped
+                          ? 'border-l-rose-600 bg-rose-50/50 hover:bg-rose-50/80'
+                          : isRed
                           ? 'border-l-rose-500 bg-rose-50/40 hover:bg-rose-50/70'
                           : isYellow
                           ? 'border-l-amber-400 bg-amber-50/30 hover:bg-amber-50/60'
@@ -894,7 +1150,14 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
                       </td>
                       <td className="py-2.5 px-3.5">
                         <div className="font-bold text-slate-900 text-xs">{r.employee.nama}</div>
-                        <div className="text-[10px] font-mono text-slate-500">{r.employee.employee_id}</div>
+                        <div className="text-[10px] font-mono text-slate-500">
+                          {isUnmapped ? `ID File: ${r.employee.unmapped_raw_id || r.employee.nama}` : `ID Mesin: ${r.employee.employee_id}`}
+                        </div>
+                        {isUnmapped && (
+                          <span className="text-[9px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded mt-0.5 inline-block">
+                            Nama Baru di File
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3.5 font-semibold text-slate-800 text-[11px]">{r.employee.bagian}</td>
                       <td className="py-2.5 px-3.5" onClick={(e) => e.stopPropagation()}>
@@ -950,6 +1213,314 @@ export const DashboardHITL: React.FC<DashboardHITLProps> = ({
           </div>
         )}
       </div>
+      )}
+
+      {/* QUICK REGISTER UNMAPPED EMPLOYEE MODAL */}
+      {quickRegisterContext && (
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 text-slate-900">
+            <div className="flex items-center gap-3 text-emerald-600">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-200">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Daftarkan Karyawan ke Master Data</h3>
+                <p className="text-xs text-slate-500">ID, Nama, dan Divisi terisi otomatis dari file</p>
+              </div>
+            </div>
+
+            {quickRegisterError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{quickRegisterError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold">No / ID Mesin:</label>
+                  </div>
+                  <input
+                    type="text"
+                    value={quickRegisterContext.rawId}
+                    onChange={(e) =>
+                      setQuickRegisterContext({ ...quickRegisterContext, rawId: e.target.value })
+                    }
+                    placeholder="ID Mesin"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold">Nama Lengkap:</label>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Otomatis File</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={quickRegisterContext.nama}
+                    onChange={(e) =>
+                      setQuickRegisterContext({ ...quickRegisterContext, nama: e.target.value })
+                    }
+                    placeholder="Nama Karyawan"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-700 font-semibold">Divisi / Bagian:</label>
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Otomatis File</span>
+                </div>
+                <div className="flex gap-1.5">
+                  <select
+                    value={['GILING', 'PACKING', 'BANDROL', 'PRODUKSI', 'GUDANG', 'MANDOR'].includes(quickRegisterContext.bagian.toUpperCase()) ? quickRegisterContext.bagian.toUpperCase() : 'OTHER'}
+                    onChange={(e) => {
+                      if (e.target.value !== 'OTHER') {
+                        setQuickRegisterContext({ ...quickRegisterContext, bagian: e.target.value });
+                      }
+                    }}
+                    className="w-1/2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="PRODUKSI">PRODUKSI</option>
+                    <option value="GILING">GILING</option>
+                    <option value="PACKING">PACKING</option>
+                    <option value="BANDROL">BANDROL</option>
+                    <option value="GUDANG">GUDANG</option>
+                    <option value="MANDOR">MANDOR</option>
+                    <option value="OTHER">Lainnya / Kustom</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={quickRegisterContext.bagian}
+                    onChange={(e) =>
+                      setQuickRegisterContext({ ...quickRegisterContext, bagian: e.target.value })
+                    }
+                    placeholder="Nama Divisi/Bagian"
+                    className="w-1/2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2.5">
+                <div className="flex items-center gap-1.5 text-amber-900 font-bold text-[11px]">
+                  <span>Atur Tarif Upah Karyawan</span>
+                  <span className="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded">Wajib Diisi</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-slate-800 font-semibold mb-1">
+                      Upah Harian (Rp) <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={quickRegisterContext.upahHarian}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value);
+                        setQuickRegisterContext({
+                          ...quickRegisterContext,
+                          upahHarian: val,
+                        });
+                        setQuickRegisterError('');
+                      }}
+                      placeholder="Wajib, misal: 150000"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-800 font-semibold mb-1">
+                      Upah Lembur/Jam (Rp) <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={quickRegisterContext.upahLembur}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value);
+                        setQuickRegisterContext({
+                          ...quickRegisterContext,
+                          upahLembur: val,
+                        });
+                        setQuickRegisterError('');
+                      }}
+                      placeholder="Wajib, misal: 12500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setQuickRegisterContext(null);
+                  setQuickRegisterError('');
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (!quickRegisterContext.rawId.trim()) {
+                    setQuickRegisterError('No / ID Mesin tidak boleh kosong.');
+                    return;
+                  }
+                  if (!quickRegisterContext.nama.trim()) {
+                    setQuickRegisterError('Nama karyawan tidak boleh kosong.');
+                    return;
+                  }
+                  if (!quickRegisterContext.bagian.trim()) {
+                    setQuickRegisterError('Divisi / Bagian tidak boleh kosong.');
+                    return;
+                  }
+                  if (quickRegisterContext.upahHarian === '' || isNaN(Number(quickRegisterContext.upahHarian)) || Number(quickRegisterContext.upahHarian) <= 0) {
+                    setQuickRegisterError('Upah Harian wajib diisi dengan nominal lebih dari 0.');
+                    return;
+                  }
+                  if (quickRegisterContext.upahLembur === '' || isNaN(Number(quickRegisterContext.upahLembur)) || Number(quickRegisterContext.upahLembur) < 0) {
+                    setQuickRegisterError('Upah Lembur per jam wajib diisi (masukkan 0 jika tidak ada lembur).');
+                    return;
+                  }
+
+                  if (onQuickRegisterUnmappedEmployee) {
+                    onQuickRegisterUnmappedEmployee(
+                      quickRegisterContext.rawId.trim(),
+                      quickRegisterContext.nama.trim(),
+                      quickRegisterContext.bagian.trim(),
+                      Number(quickRegisterContext.upahHarian),
+                      Number(quickRegisterContext.upahLembur)
+                    );
+                  }
+                  setQuickRegisterContext(null);
+                  setQuickRegisterError('');
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition"
+              >
+                Daftarkan ke Master
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE UNMAPPED EMPLOYEE CONFIRMATION MODAL */}
+      {deleteUnmappedContext && (
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 text-slate-900">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Hapus Baris Nama Ini dari File?</h3>
+                <p className="text-xs text-slate-500 font-mono">{deleteUnmappedContext.nama}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Baris nama <strong>{deleteUnmappedContext.nama}</strong> beserta seluruh tap absensinya pada periode ini akan dihapus dan tidak dimasukkan ke dalam perhitungan honor maupun rekap akhir.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setDeleteUnmappedContext(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (onDeleteUnmappedEmployee) {
+                    onDeleteUnmappedEmployee(
+                      deleteUnmappedContext.rawIdOrEmpId,
+                      'Dihapus oleh HR dari Dashboard Tinjauan'
+                    );
+                  }
+                  setDeleteUnmappedContext(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition"
+              >
+                Ya, Hapus Baris Nama Ini
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ATTENDANCE NOTE MODAL */}
+      {noteModalContext && (
+        <div className="fixed inset-0 z-60 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 text-slate-900">
+            <div className="flex items-center gap-3 text-orange-600">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Catatan Kehadiran / Cuti</h3>
+                <p className="text-xs text-slate-500">{noteModalContext.employeeName}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">Tuliskan Catatan:</label>
+                <input
+                  type="text"
+                  value={noteModalInput}
+                  onChange={(e) => setNoteModalInput(e.target.value)}
+                  placeholder="Misal: Cuti Melahirkan, Cuti Tahunan, Sakit..."
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <span className="block text-slate-500 text-[11px] mb-1.5 font-medium">Pilihan Cepat (Klik untuk memilih):</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Cuti Melahirkan', 'Cuti Tahunan', 'Sakit', 'Izin Resmi', 'Off / Libur', ''].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setNoteModalInput(preset)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
+                        preset === ''
+                          ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                          : 'bg-orange-50 hover:bg-orange-100 text-orange-950 border-orange-200 font-medium'
+                      }`}
+                    >
+                      {preset === '' ? 'Kosongkan' : preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setNoteModalContext(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (onSetAttendanceNote) {
+                    onSetAttendanceNote(noteModalContext.employeeId, noteModalInput.trim());
+                  }
+                  setNoteModalContext(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition"
+              >
+                Simpan Catatan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* QUICK DAY REVIEW & EDIT / DELETE MODAL (CLICKED DIRECTLY FROM THE MATRIX) */}
       {selectedDayContext && currentModalRecap && (

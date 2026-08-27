@@ -74,7 +74,8 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
   const [pasteFileName, setPasteFileName] = useState('ekspor_fingerprint.csv');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastImportStats, setLastImportStats] = useState<{
-    newEmployees: number;
+    matchedEmployees: number;
+    unregisteredEmployees: number;
     newTaps: number;
     dates: string[];
   } | null>(null);
@@ -118,41 +119,36 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
     });
   };
 
-  const syncEmployeesAndMappings = (
-    newExtractedEmployees: Employee[],
-    newExtractedMappings: MachineMapping[]
-  ) => {
-    let addedEmpCount = 0;
-    setEmployees((prev) => {
-      const existingIds = new Set(prev.map((e) => e.employee_id));
-      const existingNames = new Set(prev.map((e) => e.nama.toLowerCase()));
-      const toAdd: Employee[] = [];
+  const analyzeTapUsers = (taps: RawTap[]) => {
+    // Count registered vs unregistered IDs in the imported taps
+    const masterIds = new Set(employees.map((e) => e.employee_id.toLowerCase().trim()));
+    const masterNames = new Set(employees.map((e) => e.nama.toLowerCase().trim()));
 
-      newExtractedEmployees.forEach((emp) => {
-        if (!existingIds.has(emp.employee_id) && !existingNames.has(emp.nama.toLowerCase())) {
-          toAdd.push(emp);
-          addedEmpCount++;
-        }
-      });
-
-      return [...prev, ...toAdd];
+    const uniqueTapUsers = new Set<string>();
+    taps.forEach((t) => {
+      if (t.machine_user_id) uniqueTapUsers.add(t.machine_user_id.trim());
+      else if (t.employee_id) uniqueTapUsers.add(t.employee_id.trim());
     });
 
-    setMachineMappings((prev) => {
-      const existingKeys = new Set(prev.map((m) => `${m.machine_id}-${m.machine_user_id}`));
-      const toAdd: MachineMapping[] = [];
+    let matchedCount = 0;
+    let unmappedCount = 0;
 
-      newExtractedMappings.forEach((mapping) => {
-        const key = `${mapping.machine_id}-${mapping.machine_user_id}`;
-        if (!existingKeys.has(key)) {
-          toAdd.push(mapping);
-        }
-      });
-
-      return [...prev, ...toAdd];
+    uniqueTapUsers.forEach((uid) => {
+      const isMatch =
+        masterIds.has(uid.toLowerCase()) ||
+        masterNames.has(uid.toLowerCase()) ||
+        machineMappings.some((m) => m.machine_user_id === uid || m.employee_id === uid);
+      if (isMatch) {
+        matchedCount++;
+      } else {
+        unmappedCount++;
+      }
     });
 
-    return addedEmpCount;
+    return {
+      matchedEmployees: matchedCount,
+      unregisteredEmployees: unmappedCount,
+    };
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -163,8 +159,6 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
     try {
       const newFileInfoList: UploadedFileInfo[] = [];
       const newTaps: RawTap[] = [];
-      const allExtractedEmployees: Employee[] = [];
-      const allExtractedMappings: MachineMapping[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -180,11 +174,11 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
         const parseResult = await parseFingerprintFile(file, mFallback);
         newFileInfoList.push(parseResult.fileInfo);
         newTaps.push(...parseResult.rawTaps);
-        allExtractedEmployees.push(...parseResult.extractedEmployees);
-        allExtractedMappings.push(...parseResult.extractedMappings);
       }
 
-      const addedEmpCount = syncEmployeesAndMappings(allExtractedEmployees, allExtractedMappings);
+      // NOTE: We strictly DO NOT auto-add extracted employees to Master Data
+      // to avoid unverified employee records and incorrect wage rates.
+      const stats = analyzeTapUsers(newTaps);
 
       setUploadedFiles((prev) => [...prev, ...newFileInfoList]);
       setRawTaps((prev) => [...prev, ...newTaps]);
@@ -209,7 +203,8 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
       }
 
       setLastImportStats({
-        newEmployees: addedEmpCount,
+        matchedEmployees: stats.matchedEmployees,
+        unregisteredEmployees: stats.unregisteredEmployees,
         newTaps: newTaps.length,
         dates: datesFound,
       });
@@ -230,10 +225,8 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
     try {
       const parseResult = parseFingerprintText(pastedText, pasteFileName || 'data_paste.csv', selectedMachineFallback);
       
-      const addedEmpCount = syncEmployeesAndMappings(
-        parseResult.extractedEmployees,
-        parseResult.extractedMappings
-      );
+      // NOTE: We strictly DO NOT auto-add extracted employees to Master Data
+      const stats = analyzeTapUsers(parseResult.rawTaps);
 
       setUploadedFiles((prev) => [...prev, parseResult.fileInfo]);
       setRawTaps((prev) => [...prev, ...parseResult.rawTaps]);
@@ -257,7 +250,8 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
       }
 
       setLastImportStats({
-        newEmployees: addedEmpCount,
+        matchedEmployees: stats.matchedEmployees,
+        unregisteredEmployees: stats.unregisteredEmployees,
         newTaps: parseResult.rawTaps.length,
         dates: datesFound,
       });
@@ -304,7 +298,7 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
             Impor Fingerprint & Penetapan Periode Gaji
           </h2>
           <p className="text-xs text-slate-600 mt-0.5 max-w-2xl">
-            Siklus penggajian PR Sekar Anom: <strong>Sabtu s.d. Jumat</strong>. Karyawan dan log absensi otomatis disinkronisasi ke Master.
+            Siklus penggajian PR Sekar Anom: <strong>Sabtu s.d. Jumat</strong>. Master Karyawan dan tarif upah bersifat terlindungi (tidak otomatis ditambah dari file).
           </p>
         </div>
 
@@ -350,22 +344,39 @@ export const UploadAndPeriod: React.FC<UploadAndPeriodProps> = ({
         </div>
       )}
 
-      {/* Success Notification after import */}
+      {/* Success / Status Notification after import */}
       {lastImportStats && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs text-emerald-900 shadow-xs">
-          <div className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+        <div className={`border rounded-xl p-3.5 flex items-start justify-between gap-3 text-xs shadow-xs ${
+          lastImportStats.unregisteredEmployees > 0 
+            ? 'bg-amber-50 border-amber-300 text-amber-950' 
+            : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+        }`}>
+          <div className="flex items-start gap-2.5">
+            {lastImportStats.unregisteredEmployees > 0 ? (
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            )}
             <div>
-              <p className="font-bold text-xs text-emerald-950">Data Fingerprint Berhasil Dimuat!</p>
-              <p className="text-emerald-800 text-[11px] mt-0.5">
-                Terbaca <strong>{lastImportStats.newTaps} tap kehadiran</strong> dan <strong>{lastImportStats.dates.length} tanggal</strong>. 
-                {lastImportStats.newEmployees > 0 && ` Ditambahkan ${lastImportStats.newEmployees} karyawan baru ke Master.`}
+              <p className="font-bold text-xs">
+                {lastImportStats.unregisteredEmployees > 0 
+                  ? 'Data Fingerprint Dimuat — Perlu Tinjauan Nama Baru' 
+                  : 'Data Fingerprint Berhasil Dimuat!'}
               </p>
+              <p className="text-[11px] mt-0.5 leading-relaxed">
+                Terbaca <strong>{lastImportStats.newTaps} tap kehadiran</strong> ({lastImportStats.dates.length} tanggal). 
+                Cocok dengan <strong>{lastImportStats.matchedEmployees} karyawan</strong> di Master Data.
+              </p>
+              {lastImportStats.unregisteredEmployees > 0 && (
+                <div className="mt-1.5 p-2 bg-amber-100/70 border border-amber-300/80 rounded-lg text-[11px] text-amber-900">
+                  ⚠️ <strong>{lastImportStats.unregisteredEmployees} nama / ID di file belum terdaftar di Master Karyawan</strong>. Sesuai prosedur keamanan, nama ini <u>TIDAK otomatis dimasukkan ke Master</u> agar tarif upah tidak keliru. Silakan tinjau dan tetapkan upah karyawan di <strong>Dashboard Tinjauan</strong>.
+                </div>
+              )}
             </div>
           </div>
           <button
             onClick={() => setLastImportStats(null)}
-            className="text-emerald-700 hover:text-emerald-950 text-xs font-bold px-2 py-0.5 rounded"
+            className="text-slate-600 hover:text-slate-900 text-xs font-bold px-2 py-0.5 rounded"
           >
             Tutup
           </button>

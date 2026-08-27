@@ -68,13 +68,14 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
   // Handle Employee Save
   const handleSaveEmployee = () => {
     if (!empForm.employee_id || !empForm.nama || !empForm.bagian || !empForm.upah_harian) {
-      setEmpFormError('Mohon lengkapi ID Karyawan, Nama, Bagian, dan Upah Harian.');
+      setEmpFormError('Mohon lengkapi ID Mesin / Karyawan, Nama, Bagian, dan Upah Harian.');
       return;
     }
 
     const lembur = empForm.upah_lembur_per_jam || Math.round((empForm.upah_harian || 150000) / 12);
+    const newEmpId = empForm.employee_id.trim();
     const newEmp: Employee = {
-      employee_id: empForm.employee_id.trim().toUpperCase(),
+      employee_id: newEmpId,
       nama: empForm.nama.trim().toUpperCase(),
       bagian: empForm.bagian.trim().toUpperCase(),
       jabatan: empForm.jabatan?.trim() || '',
@@ -84,11 +85,24 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
     };
 
     if (isAddingEmp) {
-      if (employees.some((e) => e.employee_id === newEmp.employee_id)) {
-        setEmpFormError('ID Karyawan sudah terdaftar. Gunakan ID yang berbeda.');
+      if (employees.some((e) => e.employee_id.toLowerCase() === newEmp.employee_id.toLowerCase())) {
+        setEmpFormError(`ID Mesin '${newEmp.employee_id}' sudah terdaftar. Gunakan ID Mesin yang berbeda.`);
         return;
       }
       setEmployees((prev) => [...prev, newEmp]);
+      // Also automatically create standard mapping if not existing
+      if (!machineMappings.some((m) => m.machine_user_id === newEmpId && m.employee_id === newEmpId)) {
+        setMachineMappings((prev) => [
+          ...prev,
+          {
+            id: `map-${Date.now()}`,
+            machine_id: 'FINGER1',
+            machine_user_id: newEmpId,
+            employee_id: newEmpId,
+            machine_name: 'Mesin Fingerprint',
+          },
+        ]);
+      }
     } else if (editingEmpId) {
       setEmployees((prev) => prev.map((e) => (e.employee_id === editingEmpId ? newEmp : e)));
     }
@@ -213,9 +227,9 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
                   setEditingEmpId(null);
                   setEmpFormError('');
                   setEmpForm({
-                    employee_id: `EMP-00${employees.length + 1}`,
+                    employee_id: '',
                     nama: '',
-                    bagian: 'SECURITY',
+                    bagian: 'PRODUKSI',
                     jabatan: '',
                     upah_harian: 150000,
                     upah_lembur_per_jam: 12500,
@@ -235,7 +249,7 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
             <div className="bg-white border border-blue-200 rounded-xl p-5 space-y-4 shadow-xs">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-blue-600" />
-                {isAddingEmp ? 'Tambah Karyawan Baru' : 'Edit Data Karyawan'}
+                {isAddingEmp ? 'Tambah Karyawan Baru (ID Mesin = ID Karyawan)' : 'Edit Data Karyawan'}
               </h3>
 
               {empFormError && (
@@ -247,15 +261,19 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div>
                   <label className="block text-slate-800 font-semibold mb-1">
-                    ID Karyawan (Global) <span className="text-rose-600">*</span>
+                    ID Mesin (User ID di Mesin) <span className="text-rose-600">*</span>
                   </label>
                   <input
                     type="text"
+                    placeholder="Misal: 6, 7, 101, 104..."
                     value={empForm.employee_id}
                     onChange={(e) => setEmpForm({ ...empForm, employee_id: e.target.value })}
                     disabled={Boolean(editingEmpId)}
                     className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 uppercase font-mono text-slate-900 font-bold"
                   />
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    ID Mesin ini langsung menjadi ID Karyawan.
+                  </span>
                 </div>
                 <div>
                   <label className="block text-slate-800 font-semibold mb-1">
@@ -353,7 +371,7 @@ export const MasterDataModal: React.FC<MasterDataModalProps> = ({
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="p-3">ID Karyawan</th>
+                  <th className="p-3">ID Mesin</th>
                   <th className="p-3">Nama</th>
                   <th className="p-3">Bagian</th>
                   <th className="p-3 text-right">Upah Harian (Rp)</th>

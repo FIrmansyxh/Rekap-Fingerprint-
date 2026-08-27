@@ -14,8 +14,11 @@ import {
   Link2,
   Check,
   Info,
+  UserPlus,
+  FileText,
+  ArrowRightLeft,
 } from 'lucide-react';
-import { EmployeeRecap, WorkSession, RawTap, SystemSettings } from '../types';
+import { EmployeeRecap, WorkSession, RawTap, SystemSettings, PeriodConfig } from '../types';
 import { formatRupiah, formatDecimal, getIndonesianDayName } from '../utils/engine';
 
 interface EmployeeDetailModalProps {
@@ -24,6 +27,7 @@ interface EmployeeDetailModalProps {
   onClose: () => void;
   isLocked: boolean;
   settings: SystemSettings;
+  period?: PeriodConfig;
   onUpdateSessions: (
     employeeId: string,
     updatedSessions: WorkSession[],
@@ -34,6 +38,20 @@ interface EmployeeDetailModalProps {
   ) => void;
   onDeleteRawTap?: (tapId: string, reason: string) => void;
   onRestoreRawTap?: (tapId: string) => void;
+  onResolveBoundaryTap?: (
+    tapId: string,
+    action: 'DEFER_TO_NEXT' | 'SETTLE_WITH_PREVIOUS',
+    reason?: string
+  ) => void;
+  onSetAttendanceNote?: (employeeId: string, note: string) => void;
+  onDeleteUnmappedEmployee?: (rawIdOrEmpId: string, reason?: string) => void;
+  onQuickRegisterUnmappedEmployee?: (
+    rawId: string,
+    nama: string,
+    bagian: string,
+    upahHarian: number,
+    upahLembur: number
+  ) => void;
 }
 
 export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
@@ -42,12 +60,36 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   onClose,
   isLocked,
   settings,
+  period,
   onUpdateSessions,
   onDeleteRawTap,
   onRestoreRawTap,
+  onResolveBoundaryTap,
+  onSetAttendanceNote,
+  onDeleteUnmappedEmployee,
+  onQuickRegisterUnmappedEmployee,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'sessions' | 'raw_taps' | 'anomalies'>('sessions');
   const [rawTapFilter, setRawTapFilter] = useState<'all' | 'valid' | 'deduped'>('all');
+
+  // Attendance note state
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState(recap?.attendance_note || '');
+
+  // Quick Register Modal inside Employee Detail
+  const [isQuickRegisterOpen, setIsQuickRegisterOpen] = useState(false);
+  const [regRawId, setRegRawId] = useState(
+    recap?.employee.unmapped_raw_id || recap?.employee.employee_id.replace('UNMAPPED_', '') || recap?.employee.nama || ''
+  );
+  const [regNama, setRegNama] = useState(recap?.employee.nama || '');
+  const [regBagian, setRegBagian] = useState(
+    recap?.employee.bagian && recap.employee.bagian !== 'Nama Baru (Belum Terdaftar)' && recap.employee.bagian !== 'Umum'
+      ? recap.employee.bagian
+      : 'PRODUKSI'
+  );
+  const [regUpahHarian, setRegUpahHarian] = useState<number | ''>('');
+  const [regUpahLembur, setRegUpahLembur] = useState<number | ''>('');
+  const [regError, setRegError] = useState('');
 
   // Edit / Add Form State
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -77,6 +119,16 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
   const orphanTaps = raw_taps.filter(
     (t) => !t.is_deduped && !sessions.some((s) => s.check_in === t.timestamp || s.check_out === t.timestamp)
   );
+
+  const isUnmapped = employee.is_unmapped_new_name || flags.some((f) => f.code === 'R04');
+
+  // Handle Save Attendance Note
+  const handleSaveAttendanceNote = (noteText: string) => {
+    if (onSetAttendanceNote) {
+      onSetAttendanceNote(employee.employee_id, noteText);
+    }
+    setIsEditingNote(false);
+  };
 
   // Open Edit Form
   const handleStartEdit = (session: WorkSession) => {
@@ -330,7 +382,7 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
               )}
               {recap.status_color === 'yellow' && (
                 <span className="text-amber-600 font-bold flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4" /> Perhatian (Kuning)
+                  <AlertTriangle className="w-4 h-4" /> Perhatian (Oranye)
                 </span>
               )}
               {recap.status_color === 'green' && (
@@ -340,6 +392,136 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* UNMAPPED NEW NAME ACTIONS BANNER */}
+        {isUnmapped && (
+          <div className="p-4 bg-rose-50 border-b border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-rose-950 text-xs">
+                  Nama Baru di File (Belum Terdaftar di Master Data Karyawan)
+                </h4>
+                <p className="text-[11px] text-rose-800">
+                  ID Mesin / Nama <strong>{employee.nama}</strong> ada dalam file absensi tetapi belum ada di Master Data. Daftarkan ke Master agar upah dapat dihitung, atau hapus baris ini jika tidak valid.
+                </p>
+              </div>
+            </div>
+
+            {!isLocked && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    setRegRawId(employee.unmapped_raw_id || employee.employee_id.replace('UNMAPPED_', '') || employee.nama);
+                    setRegNama(employee.nama);
+                    setRegBagian(
+                      employee.bagian && employee.bagian !== 'Nama Baru (Belum Terdaftar)' && employee.bagian !== 'Umum'
+                        ? employee.bagian
+                        : 'PRODUKSI'
+                    );
+                    setRegUpahHarian('');
+                    setRegUpahLembur('');
+                    setRegError('');
+                    setIsQuickRegisterOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-xs transition"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Daftarkan ke Master</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (onDeleteUnmappedEmployee) {
+                      onDeleteUnmappedEmployee(employee.employee_id, 'Dihapus oleh HR dari modal tinjauan');
+                      onClose();
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold px-3 py-1.5 rounded-lg border border-rose-300 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Baris Ini</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ATTENDANCE & LEAVE NOTE BANNER */}
+        <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+            <div>
+              <span className="font-bold text-slate-800">Catatan Kehadiran / Cuti:</span>
+              <span className="ml-2 font-medium text-slate-600">
+                {recap.attendance_note ? (
+                  <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-900 border border-orange-200 rounded font-semibold text-[11px]">
+                    {recap.attendance_note}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">Belum ada catatan (Hadir / Normal)</span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {!isLocked && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!isEditingNote ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setNoteInput(recap.attendance_note || '');
+                      setIsEditingNote(true);
+                    }}
+                    className="text-[11px] font-semibold text-blue-600 hover:bg-blue-50 px-2 py-1 rounded border border-blue-200 transition"
+                  >
+                    {recap.attendance_note ? 'Ubah Catatan' : '+ Tambah Catatan'}
+                  </button>
+                  <button
+                    onClick={() => handleSaveAttendanceNote('Cuti Melahirkan')}
+                    className="text-[10px] bg-white hover:bg-orange-50 text-slate-700 hover:text-orange-900 px-2 py-0.5 rounded border border-slate-200 transition"
+                  >
+                    Cuti Melahirkan
+                  </button>
+                  <button
+                    onClick={() => handleSaveAttendanceNote('Cuti Tahunan')}
+                    className="text-[10px] bg-white hover:bg-orange-50 text-slate-700 hover:text-orange-900 px-2 py-0.5 rounded border border-slate-200 transition"
+                  >
+                    Cuti Tahunan
+                  </button>
+                  <button
+                    onClick={() => handleSaveAttendanceNote('Sakit')}
+                    className="text-[10px] bg-white hover:bg-orange-50 text-slate-700 hover:text-orange-900 px-2 py-0.5 rounded border border-slate-200 transition"
+                  >
+                    Sakit
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder="Misal: Cuti Melahirkan, Sakit, Izin..."
+                    className="px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[200px]"
+                  />
+                  <button
+                    onClick={() => handleSaveAttendanceNote(noteInput)}
+                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs transition"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    onClick={() => setIsEditingNote(false)}
+                    className="px-2 py-1 text-slate-600 hover:bg-slate-200 rounded-lg text-xs transition"
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Flag Badges Description (if any) */}
@@ -1043,6 +1225,188 @@ export const EmployeeDetailModal: React.FC<EmployeeDetailModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* QUICK REGISTER UNMAPPED EMPLOYEE MODAL */}
+      {isQuickRegisterOpen && (
+        <div className="fixed inset-0 z-70 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 text-slate-900">
+            <div className="flex items-center gap-3 text-emerald-600">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-200">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Daftarkan Karyawan ke Master Data</h3>
+                <p className="text-xs text-slate-500">ID, Nama, dan Divisi terisi otomatis dari file</p>
+              </div>
+            </div>
+
+            {regError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{regError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold">No / ID Mesin:</label>
+                  </div>
+                  <input
+                    type="text"
+                    value={regRawId}
+                    onChange={(e) => setRegRawId(e.target.value)}
+                    placeholder="ID Mesin"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-700 font-semibold">Nama Lengkap:</label>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Otomatis File</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={regNama}
+                    onChange={(e) => setRegNama(e.target.value)}
+                    placeholder="Nama Karyawan"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-700 font-semibold">Divisi / Bagian:</label>
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">Otomatis File</span>
+                </div>
+                <div className="flex gap-1.5">
+                  <select
+                    value={['GILING', 'PACKING', 'BANDROL', 'PRODUKSI', 'GUDANG', 'MANDOR'].includes(regBagian.toUpperCase()) ? regBagian.toUpperCase() : 'OTHER'}
+                    onChange={(e) => {
+                      if (e.target.value !== 'OTHER') {
+                        setRegBagian(e.target.value);
+                      }
+                    }}
+                    className="w-1/2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="PRODUKSI">PRODUKSI</option>
+                    <option value="GILING">GILING</option>
+                    <option value="PACKING">PACKING</option>
+                    <option value="BANDROL">BANDROL</option>
+                    <option value="GUDANG">GUDANG</option>
+                    <option value="MANDOR">MANDOR</option>
+                    <option value="OTHER">Lainnya / Kustom</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={regBagian}
+                    onChange={(e) => setRegBagian(e.target.value)}
+                    placeholder="Nama Divisi/Bagian"
+                    className="w-1/2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2.5">
+                <div className="flex items-center gap-1.5 text-amber-900 font-bold text-[11px]">
+                  <span>Atur Tarif Upah Karyawan</span>
+                  <span className="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.2 rounded">Wajib Diisi</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-slate-800 font-semibold mb-1">
+                      Upah Harian (Rp) <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={regUpahHarian}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value);
+                        setRegUpahHarian(val);
+                        setRegError('');
+                      }}
+                      placeholder="Wajib, misal: 150000"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-800 font-semibold mb-1">
+                      Upah Lembur/Jam (Rp) <span className="text-rose-600 font-bold">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={regUpahLembur}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Number(e.target.value);
+                        setRegUpahLembur(val);
+                        setRegError('');
+                      }}
+                      placeholder="Wajib, misal: 12500"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setIsQuickRegisterOpen(false);
+                  setRegError('');
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (!regRawId.trim()) {
+                    setRegError('No / ID Mesin tidak boleh kosong.');
+                    return;
+                  }
+                  if (!regNama.trim()) {
+                    setRegError('Nama karyawan tidak boleh kosong.');
+                    return;
+                  }
+                  if (!regBagian.trim()) {
+                    setRegError('Divisi / Bagian tidak boleh kosong.');
+                    return;
+                  }
+                  if (regUpahHarian === '' || isNaN(Number(regUpahHarian)) || Number(regUpahHarian) <= 0) {
+                    setRegError('Upah Harian wajib diisi dengan nominal lebih dari 0.');
+                    return;
+                  }
+                  if (regUpahLembur === '' || isNaN(Number(regUpahLembur)) || Number(regUpahLembur) < 0) {
+                    setRegError('Upah Lembur per jam wajib diisi (masukkan 0 jika tidak ada lembur).');
+                    return;
+                  }
+
+                  if (onQuickRegisterUnmappedEmployee) {
+                    onQuickRegisterUnmappedEmployee(
+                      regRawId.trim(),
+                      regNama.trim(),
+                      regBagian.trim(),
+                      Number(regUpahHarian),
+                      Number(regUpahLembur)
+                    );
+                  }
+                  setIsQuickRegisterOpen(false);
+                  setRegError('');
+                  onClose();
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition"
+              >
+                Daftarkan ke Master
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

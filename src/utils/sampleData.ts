@@ -7,7 +7,7 @@ export const SAMPLE_PERIOD: PeriodConfig = {
 
 export const INITIAL_EMPLOYEES: Employee[] = [
   {
-    employee_id: 'EMP-001',
+    employee_id: '6',
     nama: 'AMIR',
     bagian: 'SECURITY',
     jabatan: 'Anggota Jaga',
@@ -17,7 +17,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 600000,
   },
   {
-    employee_id: 'EMP-002',
+    employee_id: '7',
     nama: 'EDY',
     bagian: 'SECURITY',
     jabatan: 'Anggota Jaga',
@@ -27,7 +27,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 750000,
   },
   {
-    employee_id: 'EMP-003',
+    employee_id: '11',
     nama: 'HERUL',
     bagian: 'SECURITY',
     jabatan: 'Anggota Jaga',
@@ -37,7 +37,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 637500,
   },
   {
-    employee_id: 'EMP-004',
+    employee_id: '15',
     nama: 'ANTON',
     bagian: 'PERUSAHAAN',
     jabatan: 'Staff Lapangan',
@@ -47,7 +47,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 825000,
   },
   {
-    employee_id: 'EMP-005',
+    employee_id: '101',
     nama: 'SLAMET WAHYUDI',
     bagian: 'MESIN 1 SA',
     jabatan: 'Operator Linting',
@@ -57,7 +57,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 712500,
   },
   {
-    employee_id: 'EMP-006',
+    employee_id: '102',
     nama: 'SITI RAHAYU',
     bagian: 'GARAN SH',
     jabatan: 'Mandor Garan',
@@ -67,7 +67,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     previous_period_honor: 825000,
   },
   {
-    employee_id: 'EMP-007',
+    employee_id: '103',
     nama: 'BAMBANG SUTRISNO',
     bagian: 'MOLINS SH',
     jabatan: 'Teknisi Mesin',
@@ -83,56 +83,56 @@ export const INITIAL_MACHINE_MAPPINGS: MachineMapping[] = [
     id: 'MAP-001',
     machine_id: 'FINGER1',
     machine_user_id: '6',
-    employee_id: 'EMP-001', // AMIR
+    employee_id: '6', // AMIR
     machine_name: 'Pos Security Gerbang Utama',
   },
   {
     id: 'MAP-002',
     machine_id: 'FINGER1',
     machine_user_id: '7',
-    employee_id: 'EMP-002', // EDY
+    employee_id: '7', // EDY
     machine_name: 'Pos Security Gerbang Utama',
   },
   {
     id: 'MAP-003',
     machine_id: 'FINGER1',
     machine_user_id: '11',
-    employee_id: 'EMP-003', // HERUL
+    employee_id: '11', // HERUL
     machine_name: 'Pos Security Gerbang Utama',
   },
   {
     id: 'MAP-004',
     machine_id: 'FINGER2',
     machine_user_id: '2',
-    employee_id: 'EMP-003', // HERUL on FINGER2 (Admin Dept.) - multi-machine check Y04
+    employee_id: '11', // HERUL on FINGER2 (Admin Dept.) - multi-machine check Y04
     machine_name: 'Gedung Admin & Produksi',
   },
   {
     id: 'MAP-005',
     machine_id: 'FINGER1',
     machine_user_id: '15',
-    employee_id: 'EMP-004', // ANTON
+    employee_id: '15', // ANTON
     machine_name: 'Pos Security Gerbang Utama',
   },
   {
     id: 'MAP-006',
     machine_id: 'FINGER2',
     machine_user_id: '101',
-    employee_id: 'EMP-005', // SLAMET
+    employee_id: '101', // SLAMET
     machine_name: 'Gedung Admin & Produksi',
   },
   {
     id: 'MAP-007',
     machine_id: 'FINGER2',
     machine_user_id: '102',
-    employee_id: 'EMP-006', // SITI
+    employee_id: '102', // SITI
     machine_name: 'Gedung Admin & Produksi',
   },
   {
     id: 'MAP-008',
     machine_id: 'FINGER2',
     machine_user_id: '103',
-    employee_id: 'EMP-007', // BAMBANG
+    employee_id: '103', // BAMBANG
     machine_name: 'Gedung Admin & Produksi',
   },
 ];
@@ -142,114 +142,114 @@ export const INITIAL_MACHINE_MAPPINGS: MachineMapping[] = [
  */
 export function generateSampleTaps(): RawTap[] {
   const taps: RawTap[] = [
-    // AMIR (EMP-001, FINGER1, ID 6)
+    // AMIR (ID Mesin: 6, FINGER1)
     // 15 Agt: 07:04
-    { id: 'TAP-AM-1', timestamp: '2026-08-15 07:04', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-1', timestamp: '2026-08-15 07:04', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 16 Agt: 01:45, 01:47 (dedup), 06:45, 19:02
-    { id: 'TAP-AM-2', timestamp: '2026-08-16 01:45', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-3', timestamp: '2026-08-16 01:47', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-4', timestamp: '2026-08-16 06:45', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-5', timestamp: '2026-08-16 19:02', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-2', timestamp: '2026-08-16 01:45', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-3', timestamp: '2026-08-16 01:47', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-4', timestamp: '2026-08-16 06:45', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-5', timestamp: '2026-08-16 19:02', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 17 Agt: 06:58, 15:00, 22:54
-    { id: 'TAP-AM-6', timestamp: '2026-08-17 06:58', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-7', timestamp: '2026-08-17 15:00', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-8', timestamp: '2026-08-17 22:54', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-6', timestamp: '2026-08-17 06:58', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-7', timestamp: '2026-08-17 15:00', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-8', timestamp: '2026-08-17 22:54', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 18 Agt: 14:52, 22:55
-    { id: 'TAP-AM-9', timestamp: '2026-08-18 14:52', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-10', timestamp: '2026-08-18 22:55', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-9', timestamp: '2026-08-18 14:52', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-10', timestamp: '2026-08-18 22:55', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 19 Agt: 15:08, 23:01
-    { id: 'TAP-AM-11', timestamp: '2026-08-19 15:08', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-12', timestamp: '2026-08-19 23:01', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-11', timestamp: '2026-08-19 15:08', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-12', timestamp: '2026-08-19 23:01', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 20 Agt: 22:54
-    { id: 'TAP-AM-13', timestamp: '2026-08-20 22:54', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-13', timestamp: '2026-08-20 22:54', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
     // 21 Agt: 14:57, 23:59
-    { id: 'TAP-AM-14', timestamp: '2026-08-21 14:57', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
-    { id: 'TAP-AM-15', timestamp: '2026-08-21 23:59', machine_id: 'FINGER1', machine_user_id: '6', employee_id: 'EMP-001' },
+    { id: 'TAP-AM-14', timestamp: '2026-08-21 14:57', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
+    { id: 'TAP-AM-15', timestamp: '2026-08-21 23:59', machine_id: 'FINGER1', machine_user_id: '6', employee_id: '6' },
 
-    // EDY (EMP-002, FINGER1, ID 7)
+    // EDY (ID Mesin: 7, FINGER1)
     // 15 Agt: 07:03, 15:04
-    { id: 'TAP-ED-1', timestamp: '2026-08-15 07:03', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
-    { id: 'TAP-ED-2', timestamp: '2026-08-15 15:04', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-1', timestamp: '2026-08-15 07:03', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
+    { id: 'TAP-ED-2', timestamp: '2026-08-15 15:04', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
     // 16 Agt: (kosong)
     // 17 Agt: 22:50
-    { id: 'TAP-ED-3', timestamp: '2026-08-17 22:50', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-3', timestamp: '2026-08-17 22:50', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
     // 18 Agt: 06:57, 22:46
-    { id: 'TAP-ED-4', timestamp: '2026-08-18 06:57', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
-    { id: 'TAP-ED-5', timestamp: '2026-08-18 22:46', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-4', timestamp: '2026-08-18 06:57', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
+    { id: 'TAP-ED-5', timestamp: '2026-08-18 22:46', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
     // 19 Agt: 07:04, 22:49
-    { id: 'TAP-ED-6', timestamp: '2026-08-19 07:04', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
-    { id: 'TAP-ED-7', timestamp: '2026-08-19 22:49', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-6', timestamp: '2026-08-19 07:04', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
+    { id: 'TAP-ED-7', timestamp: '2026-08-19 22:49', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
     // 20 Agt: 07:00, 22:49
-    { id: 'TAP-ED-8', timestamp: '2026-08-20 07:00', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
-    { id: 'TAP-ED-9', timestamp: '2026-08-20 22:49', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-8', timestamp: '2026-08-20 07:00', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
+    { id: 'TAP-ED-9', timestamp: '2026-08-20 22:49', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
     // 21 Agt: 07:06, 19:06
-    { id: 'TAP-ED-10', timestamp: '2026-08-21 07:06', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
-    { id: 'TAP-ED-11', timestamp: '2026-08-21 19:06', machine_id: 'FINGER1', machine_user_id: '7', employee_id: 'EMP-002' },
+    { id: 'TAP-ED-10', timestamp: '2026-08-21 07:06', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
+    { id: 'TAP-ED-11', timestamp: '2026-08-21 19:06', machine_id: 'FINGER1', machine_user_id: '7', employee_id: '7' },
 
-    // HERUL (EMP-003, FINGER1 ID 11 & FINGER2 ID 2)
+    // HERUL (ID Mesin: 11, FINGER1 & FINGER2)
     // 15 Agt: 06:21
-    { id: 'TAP-HE-1', timestamp: '2026-08-15 06:21', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-1', timestamp: '2026-08-15 06:21', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 16 Agt: 01:46
-    { id: 'TAP-HE-2', timestamp: '2026-08-16 01:46', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-2', timestamp: '2026-08-16 01:46', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 17 Agt: 13:58, 22:01
-    { id: 'TAP-HE-3', timestamp: '2026-08-17 13:58', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
-    { id: 'TAP-HE-4', timestamp: '2026-08-17 22:01', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-3', timestamp: '2026-08-17 13:58', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
+    { id: 'TAP-HE-4', timestamp: '2026-08-17 22:01', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 18 Agt: 13:54, 23:09
-    { id: 'TAP-HE-5', timestamp: '2026-08-18 13:54', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
-    { id: 'TAP-HE-6', timestamp: '2026-08-18 23:09', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-5', timestamp: '2026-08-18 13:54', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
+    { id: 'TAP-HE-6', timestamp: '2026-08-18 23:09', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 19 Agt: 13:57, 22:01
-    { id: 'TAP-HE-7', timestamp: '2026-08-19 13:57', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
-    { id: 'TAP-HE-8', timestamp: '2026-08-19 22:01', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-7', timestamp: '2026-08-19 13:57', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
+    { id: 'TAP-HE-8', timestamp: '2026-08-19 22:01', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 20 Agt: 13:57, 22:04
-    { id: 'TAP-HE-9', timestamp: '2026-08-20 13:57', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
-    { id: 'TAP-HE-10', timestamp: '2026-08-20 22:04', machine_id: 'FINGER1', machine_user_id: '11', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-9', timestamp: '2026-08-20 13:57', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
+    { id: 'TAP-HE-10', timestamp: '2026-08-20 22:04', machine_id: 'FINGER1', machine_user_id: '11', employee_id: '11' },
     // 21 Agt: 14:09, 23:12 (Recorded on FINGER2)
-    { id: 'TAP-HE-11', timestamp: '2026-08-21 14:09', machine_id: 'FINGER2', machine_user_id: '2', employee_id: 'EMP-003' },
-    { id: 'TAP-HE-12', timestamp: '2026-08-21 23:12', machine_id: 'FINGER2', machine_user_id: '2', employee_id: 'EMP-003' },
+    { id: 'TAP-HE-11', timestamp: '2026-08-21 14:09', machine_id: 'FINGER2', machine_user_id: '2', employee_id: '11' },
+    { id: 'TAP-HE-12', timestamp: '2026-08-21 23:12', machine_id: 'FINGER2', machine_user_id: '2', employee_id: '11' },
 
-    // ANTON: No taps (R06)
+    // ANTON (ID Mesin: 15): No taps (Y05 / Cuti)
 
-    // SLAMET WAHYUDI (Clean 6 days regular shift)
-    { id: 'TAP-SL-1', timestamp: '2026-08-15 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-2', timestamp: '2026-08-15 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-3', timestamp: '2026-08-17 07:02', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-4', timestamp: '2026-08-17 15:05', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-5', timestamp: '2026-08-18 06:58', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-6', timestamp: '2026-08-18 15:02', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-7', timestamp: '2026-08-19 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-8', timestamp: '2026-08-19 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-9', timestamp: '2026-08-20 07:01', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-10', timestamp: '2026-08-20 15:03', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-11', timestamp: '2026-08-21 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
-    { id: 'TAP-SL-12', timestamp: '2026-08-21 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: 'EMP-005' },
+    // SLAMET WAHYUDI (ID Mesin: 101 - Clean 6 days regular shift)
+    { id: 'TAP-SL-1', timestamp: '2026-08-15 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-2', timestamp: '2026-08-15 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-3', timestamp: '2026-08-17 07:02', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-4', timestamp: '2026-08-17 15:05', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-5', timestamp: '2026-08-18 06:58', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-6', timestamp: '2026-08-18 15:02', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-7', timestamp: '2026-08-19 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-8', timestamp: '2026-08-19 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-9', timestamp: '2026-08-20 07:01', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-10', timestamp: '2026-08-20 15:03', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-11', timestamp: '2026-08-21 07:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
+    { id: 'TAP-SL-12', timestamp: '2026-08-21 15:00', machine_id: 'FINGER2', machine_user_id: '101', employee_id: '101' },
 
-    // SITI RAHAYU (Regular with 1 day overtime)
-    { id: 'TAP-SI-1', timestamp: '2026-08-15 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-2', timestamp: '2026-08-15 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' }, // 12h = 1.0 H
-    { id: 'TAP-SI-3', timestamp: '2026-08-17 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-4', timestamp: '2026-08-17 21:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' }, // 14h = 1.0 H, 2.0 L
-    { id: 'TAP-SI-5', timestamp: '2026-08-18 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-6', timestamp: '2026-08-18 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-7', timestamp: '2026-08-19 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-8', timestamp: '2026-08-19 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-9', timestamp: '2026-08-20 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-10', timestamp: '2026-08-20 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-11', timestamp: '2026-08-21 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
-    { id: 'TAP-SI-12', timestamp: '2026-08-21 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: 'EMP-006' },
+    // SITI RAHAYU (ID Mesin: 102 - Regular with 1 day overtime)
+    { id: 'TAP-SI-1', timestamp: '2026-08-15 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-2', timestamp: '2026-08-15 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' }, // 12h = 1.0 H
+    { id: 'TAP-SI-3', timestamp: '2026-08-17 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-4', timestamp: '2026-08-17 21:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' }, // 14h = 1.0 H, 2.0 L
+    { id: 'TAP-SI-5', timestamp: '2026-08-18 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-6', timestamp: '2026-08-18 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-7', timestamp: '2026-08-19 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-8', timestamp: '2026-08-19 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-9', timestamp: '2026-08-20 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-10', timestamp: '2026-08-20 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-11', timestamp: '2026-08-21 07:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
+    { id: 'TAP-SI-12', timestamp: '2026-08-21 19:00', machine_id: 'FINGER2', machine_user_id: '102', employee_id: '102' },
 
-    // BAMBANG SUTRISNO (Regular)
-    { id: 'TAP-BA-1', timestamp: '2026-08-15 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-2', timestamp: '2026-08-15 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-3', timestamp: '2026-08-17 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-4', timestamp: '2026-08-17 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-5', timestamp: '2026-08-18 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-6', timestamp: '2026-08-18 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-7', timestamp: '2026-08-19 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-8', timestamp: '2026-08-19 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-9', timestamp: '2026-08-20 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-10', timestamp: '2026-08-20 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-11', timestamp: '2026-08-21 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
-    { id: 'TAP-BA-12', timestamp: '2026-08-21 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: 'EMP-007' },
+    // BAMBANG SUTRISNO (ID Mesin: 103 - Regular)
+    { id: 'TAP-BA-1', timestamp: '2026-08-15 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-2', timestamp: '2026-08-15 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-3', timestamp: '2026-08-17 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-4', timestamp: '2026-08-17 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-5', timestamp: '2026-08-18 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-6', timestamp: '2026-08-18 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-7', timestamp: '2026-08-19 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-8', timestamp: '2026-08-19 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-9', timestamp: '2026-08-20 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-10', timestamp: '2026-08-20 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-11', timestamp: '2026-08-21 08:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
+    { id: 'TAP-BA-12', timestamp: '2026-08-21 16:00', machine_id: 'FINGER2', machine_user_id: '103', employee_id: '103' },
   ];
 
   return taps;

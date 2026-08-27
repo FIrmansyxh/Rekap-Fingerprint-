@@ -59,6 +59,9 @@ export default function App() {
   // Manual session overrides per employee (maps employee_id -> WorkSession[])
   const [manualOverrides, setManualOverrides] = useState<Record<string, WorkSession[]>>({});
 
+  // Attendance & Leave Notes (e.g. "Cuti Melahirkan", "Cuti Tahunan", "Sakit")
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
+
   // Audit Logs
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([
     {
@@ -97,17 +100,99 @@ export default function App() {
 
   // Recalculate recaps automatically whenever any input or state changes
   const recaps = useMemo(() => {
-    return employees.map((emp) =>
+    // 1. If no raw taps are uploaded / present, Dashboard is empty!
+    if (rawTaps.length === 0) {
+      return [];
+    }
+
+    // 2. Identify employees who have taps in the uploaded file
+    const presentEmployeeIds = new Set<string>();
+    const presentMachineKeys = new Set<string>(); // "machine_id:machine_user_id"
+    const presentUserIds = new Set<string>();
+
+    for (const tap of rawTaps) {
+      if (tap.employee_id) presentEmployeeIds.add(tap.employee_id);
+      if (tap.machine_user_id) {
+        presentUserIds.add(tap.machine_user_id.toLowerCase().trim());
+        presentMachineKeys.add(`${tap.machine_id}:${tap.machine_user_id}`);
+      }
+    }
+
+    // Filter Master Employees: ONLY include those present in the uploaded file
+    const matchedMasterEmployees = employees.filter((emp) => {
+      if (presentEmployeeIds.has(emp.employee_id)) return true;
+
+      const hasMappedMachine = machineMappings.some(
+        (m) =>
+          m.employee_id === emp.employee_id &&
+          presentMachineKeys.has(`${m.machine_id}:${m.machine_user_id}`)
+      );
+      if (hasMappedMachine) return true;
+
+      if (presentUserIds.has(emp.nama.toLowerCase().trim())) return true;
+      if (presentUserIds.has(emp.employee_id.toLowerCase().trim())) return true;
+
+      return false;
+    });
+
+    // 3. Detect any unmapped / new names in raw taps that are NOT in Master Data
+    const allMappedMachineKeys = new Set(
+      machineMappings.map((m) => `${m.machine_id}:${m.machine_user_id}`)
+    );
+    const masterEmployeeIds = new Set(employees.map((e) => e.employee_id));
+    const masterNames = new Set(employees.map((e) => e.nama.toLowerCase().trim()));
+
+    const unmappedRawUserIds = new Set<string>();
+    for (const tap of rawTaps) {
+      if (tap.employee_id && masterEmployeeIds.has(tap.employee_id)) continue;
+      const key = `${tap.machine_id}:${tap.machine_user_id}`;
+      if (allMappedMachineKeys.has(key)) continue;
+      if (masterNames.has((tap.machine_user_id || '').toLowerCase().trim())) continue;
+      if (masterEmployeeIds.has(tap.machine_user_id || '')) continue;
+
+      if (tap.machine_user_id && tap.machine_user_id.trim()) {
+        unmappedRawUserIds.add(tap.machine_user_id.trim());
+      }
+    }
+
+    // Construct virtual Employee entries for unmapped new names
+    const unmappedVirtualEmployees: Employee[] = Array.from(unmappedRawUserIds).map((rawUid) => {
+      const matchTap = rawTaps.find(
+        (t) => t.machine_user_id === rawUid || t.employee_id === rawUid
+      );
+      const detectedName = matchTap?.extracted_name || rawUid;
+      const detectedDept =
+        matchTap?.extracted_dept && matchTap.extracted_dept !== 'Umum'
+          ? matchTap.extracted_dept
+          : 'PRODUKSI';
+
+      return {
+        employee_id: `UNMAPPED_${rawUid}`,
+        nama: detectedName,
+        bagian: detectedDept,
+        jabatan: 'ID Mesin / Nama Baru',
+        upah_harian: 0,
+        upah_lembur_per_jam: 0,
+        status: 'aktif',
+        is_unmapped_new_name: true,
+        unmapped_raw_id: rawUid,
+      };
+    });
+
+    const targetEmployees = [...matchedMasterEmployees, ...unmappedVirtualEmployees];
+
+    return targetEmployees.map((emp) =>
       processEmployeeRecap(
         emp,
         rawTaps,
         machineMappings,
         period,
         settings,
-        manualOverrides[emp.employee_id]
+        manualOverrides[emp.employee_id],
+        attendanceNotes[emp.employee_id]
       )
     );
-  }, [employees, rawTaps, machineMappings, period, settings, manualOverrides]);
+  }, [employees, rawTaps, machineMappings, period, settings, manualOverrides, attendanceNotes]);
 
   // Date completeness validation
   const { isComplete: isDateComplete, missingDates } = useMemo(() => {
@@ -131,6 +216,7 @@ export default function App() {
     setRawTaps(generateSampleTaps());
     setUploadedFiles([]);
     setManualOverrides({});
+    setAttendanceNotes({});
     setSettings(DEFAULT_SETTINGS);
 
     const newLog: AuditLogEntry = {
@@ -148,21 +234,21 @@ export default function App() {
     showToast('Data contoh PR Sekar Anom berhasil dimuat.', 'success');
   };
 
-  // Handler: Clear All Data
+  // Handler: Clear All Uploaded Taps & Files (Preserves Fixed Master Data)
   const handleConfirmClearAllData = () => {
     if (isLocked) {
       showToast('Periode terkunci. Buka kunci terlebih dahulu.', 'error');
       setIsClearDataConfirmModalOpen(false);
       return;
     }
-    setEmployees([]);
-    setMachineMappings([]);
+    // Master data (employees & machineMappings) remains FIXED and is NOT deleted.
     setRawTaps([]);
     setUploadedFiles([]);
     setManualOverrides({});
+    setAttendanceNotes({});
     setAuditLogs([]);
     setIsClearDataConfirmModalOpen(false);
-    showToast('Seluruh data berhasil dibersihkan.', 'info');
+    showToast('File absensi & tap berhasil dibersihkan. Master data karyawan tetap tersimpan aman.', 'info');
   };
 
   // Handler: Reset Master Data to Default
@@ -392,6 +478,102 @@ export default function App() {
     );
   };
 
+  // Handler: Set Attendance Note (e.g. "Cuti Melahirkan", "Cuti Tahunan", "Sakit")
+  const handleSetAttendanceNote = (employeeId: string, note: string) => {
+    const emp = employees.find((e) => e.employee_id === employeeId);
+    setAttendanceNotes((prev) => ({
+      ...prev,
+      [employeeId]: note,
+    }));
+    const newLog: AuditLogEntry = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      employee_id: employeeId,
+      employee_name: emp?.nama || employeeId,
+      action: 'EDIT_SESSION',
+      before_value: attendanceNotes[employeeId] || 'Tidak ada catatan',
+      after_value: note || 'Catatan dihapus',
+      reason: `Pencatatan status kehadiran / cuti: ${note || '-'}`,
+      actor: 'Admin HR',
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast('Catatan kehadiran berhasil diperbarui.', 'success');
+  };
+
+  // Handler: Delete / Dismiss unmapped new name row and all its taps
+  const handleDeleteUnmappedEmployee = (rawIdOrEmpId: string, reason?: string) => {
+    const cleanId = rawIdOrEmpId.replace('UNMAPPED_', '');
+    setRawTaps((prev) =>
+      prev.filter(
+        (t) =>
+          t.employee_id !== rawIdOrEmpId &&
+          t.employee_id !== cleanId &&
+          t.machine_user_id !== cleanId
+      )
+    );
+    const newLog: AuditLogEntry = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      employee_id: rawIdOrEmpId,
+      employee_name: cleanId,
+      action: 'DELETE_SESSION',
+      before_value: `Baris Nama Baru: ${cleanId}`,
+      after_value: 'Dihapus dari kalkulasi & dashboard',
+      reason: reason || 'Penghapusan baris nama baru/tidak valid oleh HR',
+      actor: 'Admin HR',
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Baris nama '${cleanId}' dan seluruh tap-nya berhasil dihapus.`, 'info');
+  };
+
+  // Handler: Quick Register unmapped new name to Master Data
+  const handleQuickRegisterUnmappedEmployee = (
+    rawId: string,
+    nama: string,
+    bagian: string,
+    upahHarian: number,
+    upahLembur: number
+  ) => {
+    const newEmpId = rawId.trim();
+    const newEmp: Employee = {
+      employee_id: newEmpId,
+      nama: nama.trim() || rawId,
+      bagian: bagian.trim() || 'Produksi',
+      upah_harian: upahHarian || 85000,
+      upah_lembur_per_jam: upahLembur || 10000,
+      status: 'aktif',
+      berlaku_dari: period.startDate,
+    };
+    setEmployees((prev) => [...prev, newEmp]);
+
+    const newMapping: MachineMapping = {
+      id: `map-${Date.now()}`,
+      machine_id: 'FINGER1',
+      machine_user_id: newEmpId,
+      employee_id: newEmpId,
+      machine_name: 'Mesin Fingerprint',
+    };
+    setMachineMappings((prev) => [...prev, newMapping]);
+
+    setRawTaps((prev) =>
+      prev.map((t) => (t.machine_user_id === rawId || t.employee_id === rawId ? { ...t, employee_id: newEmpId } : t))
+    );
+
+    const newLog: AuditLogEntry = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      employee_id: newEmpId,
+      employee_name: newEmp.nama,
+      action: 'ADD_SESSION',
+      before_value: `Nama Baru Belum Terdaftar: ${rawId}`,
+      after_value: `Terdaftar di Master: ${newEmp.nama} (ID Mesin: ${newEmpId})`,
+      reason: 'Pendaftaran cepat dari Dashboard Tinjauan',
+      actor: 'Admin HR',
+    };
+    setAuditLogs((prev) => [newLog, ...prev]);
+    showToast(`Karyawan '${newEmp.nama}' (ID Mesin: ${newEmpId}) berhasil didaftarkan ke Master Data.`, 'success');
+  };
+
   // Modal active employee recap
   const activeRecapForModal = recaps.find(
     (r) => r.employee.employee_id === selectedEmployeeIdForModal
@@ -471,6 +653,9 @@ export default function App() {
               onDeleteRawTap={handleDeleteRawTap}
               onRestoreRawTap={handleRestoreRawTap}
               onResolveBoundaryTap={handleResolveBoundaryTap}
+              onSetAttendanceNote={handleSetAttendanceNote}
+              onDeleteUnmappedEmployee={handleDeleteUnmappedEmployee}
+              onQuickRegisterUnmappedEmployee={handleQuickRegisterUnmappedEmployee}
               onNavigateToUpload={() => setActiveTab('upload')}
             />
           )}
@@ -542,6 +727,9 @@ export default function App() {
         onDeleteRawTap={handleDeleteRawTap}
         onRestoreRawTap={handleRestoreRawTap}
         onResolveBoundaryTap={handleResolveBoundaryTap}
+        onSetAttendanceNote={handleSetAttendanceNote}
+        onDeleteUnmappedEmployee={handleDeleteUnmappedEmployee}
+        onQuickRegisterUnmappedEmployee={handleQuickRegisterUnmappedEmployee}
       />
 
       {/* In-App Modal: Lock Period Confirmation */}
@@ -656,13 +844,13 @@ export default function App() {
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Hapus Seluruh Data?</h3>
-                <p className="text-xs text-slate-500">Tindakan ini akan mengosongkan seluruh database aktif</p>
+                <h3 className="text-sm font-bold text-slate-900">Bersihkan File & Data Absensi?</h3>
+                <p className="text-xs text-slate-500">Master Data Karyawan tetap tersimpan aman (Fixed)</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Semua data karyawan, tap absensi, file yang diunggah, dan log audit akan dihapus. Anda dapat memuat data baru dari file mesin atau menekan tombol 'Muat Data Contoh'.
+              Seluruh file absensi yang diunggah, tap mentah, penyesuaian manual, dan log audit periode ini akan dibersihkan. <strong>Master Data Karyawan tidak akan terhapus</strong> dan siap dipakai kembali saat file baru diunggah.
             </p>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -676,7 +864,7 @@ export default function App() {
                 onClick={handleConfirmClearAllData}
                 className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition"
               >
-                Ya, Bersihkan Semua Data
+                Ya, Bersihkan Data Absensi
               </button>
             </div>
           </div>

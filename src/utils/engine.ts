@@ -380,7 +380,8 @@ export function processEmployeeRecap(
   machineMappings: MachineMapping[],
   period: PeriodConfig,
   settings: SystemSettings,
-  manualSessionsOverride?: WorkSession[]
+  manualSessionsOverride?: WorkSession[],
+  attendanceNote?: string
 ): EmployeeRecap {
   const periodDates = getPeriodDates(period.startDate);
   const employeeMappings = machineMappings.filter((m) => m.employee_id === employee.employee_id);
@@ -388,6 +389,7 @@ export function processEmployeeRecap(
   // Find all raw taps that map to this employee
   const employeeRawTaps = allRawTaps.filter((tap) => {
     if (tap.employee_id === employee.employee_id) return true;
+    if (employee.unmapped_raw_id && tap.machine_user_id === employee.unmapped_raw_id) return true;
     return employeeMappings.some(
       (m) => m.machine_id === tap.machine_id && m.machine_user_id === tap.machine_user_id
     );
@@ -404,6 +406,16 @@ export function processEmployeeRecap(
   let flags: FlagBadge[] = [];
   let orphanTapsCount = 0;
 
+  // Check R04: Karyawan baru / belum terdaftar di master data
+  if (employee.is_unmapped_new_name || employee.employee_id.startsWith('UNMAPPED_')) {
+    flags.push({
+      code: 'R04',
+      level: 'red',
+      title: 'Nama Baru Belum Terdaftar di Master',
+      description: `Nama/ID '${employee.unmapped_raw_id || employee.nama}' ditemukan pada file yang diunggah tetapi belum terdaftar di Master Data Karyawan. Perlu penyesuaian (daftarkan ke master / petakan ID mesin) atau hapus baris nama ini jika tidak valid.`,
+    });
+  }
+
   if (manualSessionsOverride) {
     // If HR manually created or edited sessions for this employee
     sessions = manualSessionsOverride;
@@ -411,17 +423,17 @@ export function processEmployeeRecap(
     // Automatic engine
     const engineResult = formSessionsWithPhaseReset(activeTaps, employee.employee_id, settings, period);
     sessions = engineResult.sessions;
-    flags = engineResult.flags;
+    flags = [...flags, ...engineResult.flags];
     orphanTapsCount = engineResult.orphanTaps.length;
   }
 
-  // Check R06: Karyawan ada di master tapi nol tap sepanjang periode
+  // Check Y05: Karyawan nol tap sepanjang periode (Tandai Oranye / Opsional Catatan)
   if (employee.status === 'aktif' && activeTaps.length === 0 && sessions.length === 0) {
     flags.push({
-      code: 'R06',
-      level: 'red',
-      title: 'Karyawan Nol Tap',
-      description: `Karyawan aktif di master tapi tidak ada tap sama sekali sepanjang periode ${period.startDate} s.d. ${period.endDate}.`,
+      code: 'Y05',
+      level: 'yellow',
+      title: 'Karyawan Tanpa Tap (Cuti / Sakit / Izin)',
+      description: `Karyawan tidak memiliki tap absensi pada periode ${period.startDate} s.d. ${period.endDate}. Anda dapat menambahkan keterangan kehadiran (misal: Cuti Melahirkan, Cuti Tahunan, Sakit, dll) secara opsional.`,
     });
   }
 
@@ -520,6 +532,7 @@ export function processEmployeeRecap(
     flags,
     status_color,
     machines_used: machinesUsed,
+    attendance_note: attendanceNote,
   };
 }
 
