@@ -1,0 +1,6 @@
+{
+  "name": "Rekap Gaji Harian Fingerprint - PR Sekar Anom",
+  "description": "Aplikasi rekap gaji harian karyawan dari data mesin fingerprint dengan validasi anomali, reset fase sesi, audit log, dan dashboard HITL.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
